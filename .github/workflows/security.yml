@@ -1,0 +1,12 @@
+name: Security Scans
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  secret-scan:
+    uses: basel5001/githubinfra/.github/workflows/secret-scan.yml@main
+    with:
+      scanner: gitleaks
+      fail-on-detection: true

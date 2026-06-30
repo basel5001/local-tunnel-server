@@ -1,0 +1,22 @@
+# Cloudflare Tunnel configuration
+# Copy this to config.yml and fill in your values
+# Docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /home/user/.cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  # Route traffic for your domain to local web server
+  - hostname: myapp.example.com
+    service: http://localhost:8080
+
+  # Route SSH access (optional)
+  - hostname: ssh.example.com
+    service: ssh://localhost:22
+
+  # Route any TCP service
+  - hostname: db.example.com
+    service: tcp://localhost:5432
+
+  # Catch-all (required - returns 404 for unmatched)
+  - service: http_status:404
