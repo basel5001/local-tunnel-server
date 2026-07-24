@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tunnel Status</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { margin-bottom: 1.5rem; color: #f0f6fc; }
+    .status-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+    .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+    .status-up { background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+    .status-down { background: #f85149; box-shadow: 0 0 8px #f85149; }
+    .status-unknown { background: #8b949e; }
+    .metric { display: inline-block; margin-right: 2rem; margin-top: 0.5rem; }
+    .metric-value { font-size: 1.5rem; font-weight: bold; color: #f0f6fc; }
+    .metric-label { font-size: 0.85rem; color: #8b949e; }
+    .log-entry { padding: 0.4rem 0; border-bottom: 1px solid #21262d; font-family: monospace; font-size: 0.85rem; }
+    .log-up { color: #3fb950; }
+    .log-down { color: #f85149; }
+    #log-container { max-height: 400px; overflow-y: auto; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tunnel Status Dashboard</h1>
+
+    <div class="status-card">
+      <h2><span id="status-dot" class="status-indicator status-unknown"></span><span id="status-text">Checking...</span></h2>
+      <div style="margin-top: 1rem;">
+        <div class="metric">
+          <div class="metric-value" id="uptime-pct">--</div>
+          <div class="metric-label">Uptime (24h)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value" id="last-check">--</div>
+          <div class="metric-label">Last Check</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value" id="bandwidth">--</div>
+          <div class="metric-label">Bandwidth</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-card">
+      <h2>Connection Log (Last 24h)</h2>
+      <div id="log-container"></div>
+    </div>
+  </div>
+
+  <script>
+    const ENDPOINT = localStorage.getItem('tunnelEndpoint') || 'http://localhost:8080';
+    const CHECK_INTERVAL = 60000;
+    let logs = JSON.parse(localStorage.getItem('tunnelLogs') || '[]');
+    const MAX_LOGS = 1440; // 24h at 1min intervals
+
+    function updateUI(isUp) {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      dot.className = `status-indicator ${isUp ? 'status-up' : 'status-down'}`;
+      text.textContent = isUp ? 'Tunnel Online' : 'Tunnel Offline';
+      document.getElementById('last-check') = new Date().toLocaleTimeString();
+
+      // Calculate uptime
+      const recent = logs.slice(-1440);
+      const upCount = recent.filter(l => l.up).length;
+      const pct = recent.length > 0 ? ((upCount / recent.length) * 100).toFixed(1) : '--';
+      document.getElementById('uptime-pct').textContent = `${pct}%`;
+    }
+
+    function addLog(isUp) {
+      const entry = { time: new Date().toISOString(), up: isUp };
+      logs.push(entry);
+      if (logs.length > MAX_LOGS) logs = logs.slice(-MAX_LOGS);
+      localStorage.setItem('tunnelLogs', JSON.stringify(logs));
+
+      const container = document.getElementById('log-container');
+      const div = document.createElement('div');
+      div.className = `log-entry ${isUp ? 'log-up' : 'log-down'}`;
+      div.textContent = `${entry.time} — ${isUp ? 'UP' : 'DOWN'}`;
+      container.prepend(div);
+    }
+
+    async function checkStatus() {
+      try {
+        const resp = await fetch(ENDPOINT, { mode: 'no-cors', cache: 'no-store' });
+        updateUI(true);
+        addLog(true);
+      } catch (e) {
+        updateUI(false);
+        addLog(false);
+      }
+    }
+
+    // Render existing logs
+    function renderLogs() {
+      const container = document.getElementById('log-container');
+      logs.slice(-50).reverse().forEach(entry => {
+        const div = document.createElement('div');
+        div.className = `log-entry ${entry.up ? 'log-up' : 'log-down'}`;
+        div.textContent = `${entry.time} — ${entry.up ? 'UP' : 'DOWN'}`;
+        container.appendChild(div);
+      });
+    }
+
+    renderLogs();
+    checkStatus();
+    setInterval(checkStatus, CHECK_INTERVAL);
+  </script>
+</body>
+</html>

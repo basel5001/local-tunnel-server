@@ -1,0 +1,16 @@
+[Unit]
+Description=Tunnel Health Check Monitor
+After=tunnel.service
+Requires=tunnel.service
+
+[Service]
+Type=simple
+ExecStart=/opt/tunnel-server/monitoring/health-check.sh daemon
+Restart=always
+RestartSec=5
+Environment=TUNNEL_ENDPOINT=http://localhost:8080
+Environment=CHECK_INTERVAL=60
+Environment=LOG_FILE=/var/log/tunnel-health.log
+
+[Install]
+WantedBy=multi-user.target

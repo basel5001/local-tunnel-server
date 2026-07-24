@@ -83,6 +83,68 @@ docker compose -f docker-compose.cloudflared.yml up -d
 docker compose -f docker-compose.frp.yml up -d
 ```
 
+## Auto-TLS Certificate Management
+
+Automatically obtain and renew Let's Encrypt TLS certificates:
+
+```bash
+# Standard certificate
+./scripts/auto-tls.sh tunnel.example.com admin@example.com
+
+# Wildcard certificate (requires DNS plugin credentials)
+./scripts/auto-tls.sh example.com admin@example.com true
+```
+
+### DNS-01 Challenge (Wildcard)
+
+For wildcard certs, create `/etc/letsencrypt/dns-credentials.ini`:
+
+```ini
+dns_cloudflare_api_token = YOUR_CLOUDFLARE_API_TOKEN
+```
+
+Then run with `true` as the third argument. Auto-renewal is configured via systemd timer.
+
+## Health Monitoring
+
+### Health Check Script
+
+```bash
+# Run once
+./monitoring/health-check.sh once
+
+# Run as daemon (checks every 60s)
+TUNNEL_ENDPOINT=http://localhost:8080 \
+WEBHOOK_URL=https://hooks.slack.com/... \
+./monitoring/health-check.sh daemon
+```
+
+Environment variables:
+- `TUNNEL_ENDPOINT` — URL to check (default: `http://localhost:8080`)
+- `CHECK_INTERVAL` — Seconds between checks (default: `60`)
+- `WEBHOOK_URL` — Slack/Discord webhook for notifications
+- `NOTIFY_EMAIL` — Email for failure alerts
+- `MAX_RETRIES` — Restart attempts before alerting (default: `3`)
+
+### Status Dashboard
+
+Open `monitoring/tunnel-status.html` in a browser for a real-time status page showing uptime, connection logs, and tunnel state.
+
+### Systemd Services
+
+Install the systemd units for production use:
+
+```bash
+sudo cp systemd/*.service systemd/*.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# Start tunnel
+sudo systemctl enable --now tunnel.service
+
+# Start health monitoring
+sudo systemctl enable --now tunnel-health.service
+```
+
 ## Architecture
 
 ```
@@ -104,31 +166,6 @@ cloudflared        WireGuard         frps/rathole
               Your Local Server
               (private IP, no port forwarding)
 ```
-
-## Comparison Guide
-
-### When to use each method:
-
-| Scenario | Best Option |
-|----------|-------------|
-| Web app with custom domain | Cloudflare Tunnel |
-| Game server / TCP traffic | FRP or Rathole |
-| IoT / Home automation | DuckDNS + WireGuard |
-| Quick one-off access | SSH Reverse Tunnel |
-| Maximum performance | Rathole |
-| No VPS available | Cloudflare Tunnel |
-
-### Pros & Cons:
-
-**Cloudflare Tunnel** - Zero config networking, automatic HTTPS, DDoS protection. Requires Cloudflare account (free). Only HTTP/HTTPS traffic on free plan.
-
-**DuckDNS + WireGuard** - Full network access (any protocol), encrypted. Requires port forwarding for WireGuard OR a VPS as relay. Free subdomain from DuckDNS.
-
-**FRP** - Any protocol (TCP/UDP/HTTP), multiplexing, dashboard. Requires a VPS. Very flexible.
-
-**Rathole** - Like FRP but written in Rust, faster and lighter. Requires a VPS.
-
-**SSH Tunnel** - No extra software, works anywhere SSH is available. Requires VPS. Can be unstable for long connections.
 
 ## Security Notes
 

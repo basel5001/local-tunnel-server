@@ -1,0 +1,19 @@
+[Unit]
+Description=Local Tunnel Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tunnel
+Group=tunnel
+WorkingDirectory=/opt/tunnel-server
+ExecStart=/opt/tunnel-server/scripts/start-tunnel.sh
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=TUNNEL_PORT=8080
+
+[Install]
+WantedBy=multi-user.target
